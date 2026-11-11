@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum StatusAgendamento {
+  PENDENTE
+  CONFIRMADO
+  CANCELADO
+  CONCLUIDO
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  senhaHash String   @map("senha_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  empresa Empresa?
+
+  @@map("usuarios")
+}
+
+model Empresa {
+  id              String   @id @default(uuid())
+  usuarioId       String   @unique @map("usuario_id")
+  nome            String
+  slug            String   @unique
+  whatsappContato String   @map("whatsapp_contato")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  usuario               Usuario                @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  servicos              Servico[]
+  horariosFuncionamento HorarioFuncionamento[]
+  agendamentos          Agendamento[]
+
+  @@index([slug])
+  @@map("empresas")
+}
+
+model Servico {
+  id             String   @id @default(uuid())
+  empresaId      String   @map("empresa_id")
+  nome           String
+  duracaoMinutos Int      @map("duracao_minutos")
+  preco          Decimal  @db.Decimal(10, 2)
+  ativo          Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  agendamentos Agendamento[]
+
+  @@index([empresaId])
+  @@map("servicos")
+}
+
+model HorarioFuncionamento {
+  id            String   @id @default(uuid())
+  empresaId     String   @map("empresa_id")
+  diaSemana     Int      @map("dia_semana") 
+  horaAbertura  String   @map("hora_abertura") 
+  horaFechamento String  @map("hora_fechamento")
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, diaSemana])
+  @@map("horarios_funcionamento")
+}
+
+model Agendamento {
+  id               String            @id @default(uuid())
+  empresaId        String            @map("empresa_id")
+  servicoId        String            @map("servico_id")
+  clienteNome      String            @map("cliente_nome")
+  clienteWhatsapp  String            @map("cliente_whatsapp")
+  dataHoraInicio   DateTime          @map("data_hora_inicio")
+  dataHoraFim      DateTime          @map("data_hora_fim")
+  status           StatusAgendamento @default(PENDENTE)
+  tokenConfirmacao String            @unique @default(uuid()) @map("token_confirmacao")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  servico Servico @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, dataHoraInicio])
+  @@index([tokenConfirmacao])
+  @@map("agendamentos")
+}
